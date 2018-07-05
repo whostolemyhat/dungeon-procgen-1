@@ -4,9 +4,7 @@ Creates a randomised level, for a rogue-like or similar, using room and corridor
 
 ![](manuelneuersweeperkeeper.png)
 
-<video controls>
-    <source src="./manuelneuersweeperkeeper.mp4" type="video/mp4">
-</video>
+![](gen.gif)
 
 ## Usage
 
