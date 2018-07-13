@@ -30,9 +30,10 @@ impl fmt::Display for Tile {
 
 #[derive(Serialize)]
 pub struct Level {
-    width: i32,
-    height: i32,
-    board: Vec<Vec<Tile>>,
+    pub width: i32,
+    pub height: i32,
+    pub board: Vec<Vec<Tile>>,
+    pub tile_size: i32,
     rooms: Vec<Room>,
     hash: String
 }
@@ -49,6 +50,7 @@ impl Level {
             width,
             height,
             board,
+            tile_size: 16,
             rooms: Vec::new(),
             hash: hash.clone()
         }

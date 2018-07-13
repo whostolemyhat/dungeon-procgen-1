@@ -10,12 +10,14 @@ extern crate clap;
 
 mod room;
 mod level;
+mod draw;
 
 use sha2::{ Sha256, Digest };
 use rand::prelude::*;
 use rand::distributions::Alphanumeric;
 use clap::{ App, Arg };
 
+use draw::{ draw };
 use level::Level;
 
 fn create_hash(text: &str) -> String {
@@ -62,8 +64,9 @@ fn main() {
     let mut level = Level::new(48, 40, &seed);
     level.place_rooms(&mut rng);
     level.place_corridors(&mut rng);
-    // println!("{}", level);
+    println!("{}", level);
 
-    let serialised = serde_json::to_string(&level).unwrap();
-    println!("{}", serialised);
+    draw(&level, ".", "level").unwrap();
+    // let serialised = serde_json::to_string(&level).unwrap();
+    // println!("{}", serialised);
 }
