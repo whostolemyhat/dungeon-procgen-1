@@ -11,6 +11,8 @@ extern crate clap;
 mod room;
 mod level;
 mod draw;
+mod roomscorridors;
+mod bsp;
 
 use sha2::{ Sha256, Digest };
 use rand::prelude::*;
@@ -18,7 +20,8 @@ use rand::distributions::Alphanumeric;
 use clap::{ App, Arg };
 
 use draw::{ draw };
-use level::Level;
+// use roomscorridors::{ RoomsCorridors };
+use bsp::{ BspLevel };
 
 fn create_hash(text: &str) -> String {
     let mut hasher = Sha256::default();
@@ -27,7 +30,6 @@ fn create_hash(text: &str) -> String {
 }
 
 fn main() {
-    // let hash = create_hash("manuelneuersweeperkeeper");
     let matches = App::new("Dungeon")
                     .version("1.0")
                     .author("James Baum <@whostolemyhat>")
@@ -61,12 +63,11 @@ fn main() {
     let seed_u8 = array_ref!(seed.as_bytes(), 0, 32);
     let mut rng: StdRng = SeedableRng::from_seed(*seed_u8);
 
-    let mut level = Level::new(48, 40, &seed);
-    level.place_rooms(&mut rng);
-    level.place_corridors(&mut rng);
+    // let level = RoomsCorridors::new(48, 40, &seed, &mut rng);
+    let level = BspLevel::new(48, 40, &seed, &mut rng);
     println!("{}", level);
 
     draw(&level, ".", "level").unwrap();
-    // let serialised = serde_json::to_string(&level).unwrap();
-    // println!("{}", serialised);
+    let serialised = serde_json::to_string(&level).unwrap();
+    println!("{}", serialised);
 }
