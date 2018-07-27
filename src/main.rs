@@ -20,13 +20,18 @@ use rand::distributions::Alphanumeric;
 use clap::{ App, Arg };
 
 use draw::{ draw };
-// use roomscorridors::{ RoomsCorridors };
+use roomscorridors::{ RoomsCorridors };
 use bsp::{ BspLevel };
 
 fn create_hash(text: &str) -> String {
     let mut hasher = Sha256::default();
     hasher.input(text.as_bytes());
     format!("{:x}", hasher.result())
+}
+
+enum Algorithm {
+    Bsp,
+    Rooms
 }
 
 fn main() {
@@ -43,6 +48,13 @@ fn main() {
                         .long("seed")
                         .takes_value(true)
                         .help("An existing seed. Must be 32 characters"))
+                    .arg(Arg::with_name("algo")
+                        .short("a")
+                        .long("algorithm")
+                        .takes_value(true)
+                        .possible_values(&["rooms", "bsp"])
+                        .default_value("rooms")
+                        .help("The type of procedural algorithm to use"))
                     .get_matches();
 
     let seed: String = match matches.value_of("seed") {
@@ -63,11 +75,22 @@ fn main() {
     let seed_u8 = array_ref!(seed.as_bytes(), 0, 32);
     let mut rng: StdRng = SeedableRng::from_seed(*seed_u8);
 
-    // let level = RoomsCorridors::new(48, 40, &seed, &mut rng);
-    let level = BspLevel::new(48, 40, &seed, &mut rng);
+    let method = match matches.value_of("algo").expect("Default algorithm not set") {
+        "bsp" => Algorithm::Bsp,
+        "rooms" => Algorithm::Rooms,
+        _ => unreachable![]
+    };
+
+    let board_width = 48;
+    let board_height = 40;
+
+    let level = match method {
+        Algorithm::Rooms => RoomsCorridors::new(board_width, board_height, &seed, &mut rng),
+        Algorithm::Bsp => BspLevel::new(board_width, board_height, &seed, &mut rng)
+    };
     println!("{}", level);
 
-    draw(&level, ".", "level").unwrap();
-    let serialised = serde_json::to_string(&level).unwrap();
-    println!("{}", serialised);
+    // draw(&level, ".", "level").unwrap();
+    // let serialised = serde_json::to_string(&level).unwrap();
+    // println!("{}", serialised);
 }

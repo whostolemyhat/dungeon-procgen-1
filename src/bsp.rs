@@ -22,11 +22,18 @@ impl BspLevel {
         let mut root = Leaf::new(0, 0, self.level.width, self.level.height, 8);
         root.generate(rng);
 
-        let mut rooms = vec![];
-        root.create_rooms(rng, &mut rooms);
+        root.create_rooms(rng);
 
-        for room in rooms {
-            self.level.add_room(&room);
+        for leaf in root.iter() {
+            if leaf.is_leaf() {
+                if let Some(room) = leaf.get_room() {
+                    self.level.add_room(&room);
+                }
+            }
+
+            for corridor in &leaf.corridors {
+                self.level.add_room(&corridor);
+            }
         }
     }
 }
@@ -39,7 +46,8 @@ struct Leaf {
     height: i32,
     left_child: Option<Box<Leaf>>,
     right_child: Option<Box<Leaf>>,
-    room: Option<Room>
+    room: Option<Room>,
+    corridors: Vec<Room>
 }
 
 impl Leaf {
@@ -52,7 +60,8 @@ impl Leaf {
             height,
             left_child: None,
             right_child: None,
-            room: None
+            room: None,
+            corridors: vec![]
         }
     }
 
@@ -115,13 +124,13 @@ impl Leaf {
         true
     }
 
-    fn create_rooms(&mut self, rng: &mut StdRng, rooms: &mut Vec<Room>) {
+    fn create_rooms(&mut self, rng: &mut StdRng) {
         if let Some(ref mut room) = self.left_child {
-            room.as_mut().create_rooms(rng, rooms);
+            room.as_mut().create_rooms(rng);
         };
 
         if let Some(ref mut room) = self.right_child {
-            room.as_mut().create_rooms(rng, rooms);
+            room.as_mut().create_rooms(rng);
         };
 
         let min_room_width = 4;
@@ -135,11 +144,10 @@ impl Leaf {
             let y = rng.gen_range(0, self.height - height);
 
             self.room = Some(Room::new(x + self.x, y + self.y, width, height));
-            rooms.push(self.room.unwrap());
         }
 
         if let (Some(ref mut left), Some(ref mut right)) = (&mut self.left_child, &mut self.right_child) {
-            create_corridors(rng, left, right, rooms);
+            create_corridors(rng, left, right);
         };
     }
 
@@ -165,10 +173,14 @@ impl Leaf {
             (_, Some(room)) => Some(room),
         }
     }
+
+    fn iter(&self) -> LeafIterator {
+        LeafIterator::new(&self)
+    }
 }
 
 // corridors are just very narrow rooms
-fn create_corridors(rng: &mut StdRng, left: &mut Box<Leaf>, right: &mut Box<Leaf>, corridors: &mut Vec<Room>) {
+fn create_corridors(rng: &mut StdRng, left: &mut Box<Leaf>, right: &mut Box<Leaf>) {
     if let (Some(left_room), Some(right_room)) = (left.get_room(), right.get_room()) {
         // pick point in each room
         let left_point = (rng.gen_range(left_room.x, left_room.x + left_room.width), rng.gen_range(left_room.y, left_room.y + left_room.height));
@@ -177,22 +189,22 @@ fn create_corridors(rng: &mut StdRng, left: &mut Box<Leaf>, right: &mut Box<Leaf
         match rng.gen_range(0, 2) {
             0 => {
                 match left_point.0 <= right_point.0 {
-                    true => corridors.push(horz_corridor(left_point.0, left_point.1, right_point.0)),
-                    false => corridors.push(horz_corridor(right_point.0, left_point.1, left_point.0))
+                    true => left.corridors.push(horz_corridor(left_point.0, left_point.1, right_point.0)),
+                    false => left.corridors.push(horz_corridor(right_point.0, left_point.1, left_point.0))
                 }
                 match left_point.1 <= right_point.1 {
-                    true => corridors.push(vert_corridor(right_point.0, left_point.1, right_point.1)),
-                    false => corridors.push(vert_corridor(right_point.0, right_point.1, left_point.1))
+                    true => left.corridors.push(vert_corridor(right_point.0, left_point.1, right_point.1)),
+                    false => left.corridors.push(vert_corridor(right_point.0, right_point.1, left_point.1))
                 }
             }
             _ => {
                 match left_point.1 <= right_point.1 {
-                    true => corridors.push(vert_corridor(left_point.0, left_point.1, right_point.1)),
-                    false => corridors.push(vert_corridor(left_point.0, right_point.1, left_point.1))
+                    true => left.corridors.push(vert_corridor(left_point.0, left_point.1, right_point.1)),
+                    false => left.corridors.push(vert_corridor(left_point.0, right_point.1, left_point.1))
                 }
                 match left_point.0 <= right_point.0 {
-                    true => corridors.push(horz_corridor(left_point.0, right_point.1, right_point.0)),
-                    false => corridors.push(horz_corridor(right_point.0, right_point.1, left_point.0))
+                    true => left.corridors.push(horz_corridor(left_point.0, right_point.1, right_point.0)),
+                    false => left.corridors.push(horz_corridor(right_point.0, right_point.1, left_point.0))
                 }
             }
         }
@@ -205,4 +217,50 @@ fn horz_corridor(start_x: i32, start_y: i32, end_x: i32) -> Room {
 
 fn vert_corridor(start_x: i32, start_y: i32, end_y: i32) -> Room {
     Room::new(start_x, start_y, 1, end_y - start_y)
+}
+
+struct LeafIterator<'a> {
+    current_node: Option<&'a Leaf>,
+    right_nodes: Vec<&'a Leaf>
+}
+
+impl<'a> LeafIterator<'a> {
+    fn new(root: &'a Leaf) -> LeafIterator<'a> {
+        let mut iter = LeafIterator {
+            right_nodes: vec![],
+            current_node: None
+        };
+
+        iter.add_subtrees(root);
+        iter
+    }
+
+    // set the current node to the one provided
+    // and add any child leaves to the node vec
+    fn add_subtrees(&mut self, node: &'a Leaf) {
+        if let Some(ref left) = node.left_child {
+            self.right_nodes.push(&*left);
+        }
+        if let Some(ref right) = node.right_child {
+            self.right_nodes.push(&*right);
+        }
+
+        self.current_node = Some(node);
+    }
+}
+
+impl<'a> Iterator for LeafIterator<'a> {
+    type Item = &'a Leaf;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let result = self.current_node.take();
+        if let Some(rest) = self.right_nodes.pop() {
+            self.add_subtrees(rest);
+        }
+
+        match result {
+            Some(leaf) => Some(&*leaf),
+            None => None
+        }
+    }
 }
