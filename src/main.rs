@@ -90,7 +90,7 @@ fn main() {
     };
     println!("{}", level);
 
-    // draw(&level, ".", "level").unwrap();
+    draw(&level, ".", "level").unwrap();
     // let serialised = serde_json::to_string(&level).unwrap();
     // println!("{}", serialised);
 }
